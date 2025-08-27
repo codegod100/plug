@@ -1,0 +1,168 @@
+\= plug: WASM Plugin Demo (Rust, TinyGo, Zig)
+
+A small demo that builds a WebAssembly plugin (`plugin.wasm`) from multiple
+languages and runs it via a native Rust host using Wasmtime + WASI. It includes:
+
+- Rust plugin (wasm32-wasip1)
+- Go plugin via TinyGo (wasi)
+- Zig plugin (wasm32-wasi)
+
+The host loads `plugin.wasm` and calls exported functions including
+`run`, `add(a,b) -> i32`, and `fib(n:u32) -> u64`.
+
+== Requirements
+
+- Rust toolchain with `wasm32-wasip1` target
+- mise (tool/version manager)
+- just (task runner)
+- Wasmtime is bundled via Rust crates; no separate install needed
+
+Optional, per plugin:
+
+- TinyGo (installed/pinned via mise)
+- Zig (installed/pinned via mise)
+
+== Quick Start
+
+[source,shell]
+----
+# One‑time install of tools and plugins
+just setup
+
+# Build + run Rust plugin demo
+just mandelbrot
+
+# Build + run Go (TinyGo) plugin demo
+just mandelbrot-go
+
+# Build + run Zig plugin demo
+just mandelbrot-zig
+----
+
+All demos respect these environment variables:
+
+- `MANDEL_W`: width (default 100)
+- `MANDEL_H`: height (default 30)
+- `MANDEL_ITERS`: iteration limit (default 120)
+- `PLUG_MSG`: optional footer message
+
+Example:
+
+[source,shell]
+----
+just --set w 120 --set h 40 --set iters 150 mandelbrot-go
+----
+
+Tip: Prefer positional args or `--set` flags with `just`. Using `w=100` inline
+can be parsed as a literal string by `just` and won’t override the values.
+
+== Toolchain Management (mise)
+
+This repo pins tool versions in `.mise.toml`:
+
+- `rust = 1.88.0`
+- `go = 1.24.0` (TinyGo 0.38.x requires Go 1.19–1.24)
+- `just = 1.21.0`
+- `tinygo = 0.38.0`
+- `zig = 0.12.0` (adjust if you prefer 0.14.x)
+
+Aliases are configured so mise auto‑resolves the community plugins for TinyGo
+and Zig. Run `just setup` or `mise install` to install everything.
+
+== Tasks
+
+Use `just --list` to see all tasks. Key ones:
+
+- `setup`: installs the TinyGo plugin (if missing) and runs `mise install`
+- `build`: builds Rust plugin (WASI) and host (native)
+- `build-plugin`: builds the Rust plugin to `plugin.wasm`
+- `build-host`: builds the native host
+- `build-go-plugin`: builds the Go plugin to `plugin.wasm` via TinyGo
+- `build-zig-plugin`: builds the Zig plugin to `plugin.wasm`
+- `mandelbrot`, `mandelbrot-go`, `mandelbrot-zig`: build + run each demo
+- `clean`: cleans Cargo targets
+
+== Project Layout
+
+- `src/` — host application (Rust + Wasmtime)
+- `plugin/` — Rust WASM plugin crate (exports run/add/fib)
+- `goplugin/` — Go plugin sources (TinyGo build)
+- `zigplugin/` — Zig plugin sources
+- `plugin.wasm` — symlinked build artifact; whichever plugin you built last
+  will be run by the host
+- `.cache/` — local build caches (ignored)
+
+== Rust Plugin
+
+Build and copy `plugin/target/wasm32-wasip1/release/plugin.wasm` to repo root:
+
+[source,shell]
+----
+just build-plugin
+----
+
+== Go Plugin (TinyGo)
+
+Builds to `plugin.wasm` using TinyGo and a Go toolchain supported by TinyGo.
+This repo pins TinyGo 0.38.0 and Go 1.24.0 in `.mise.toml`.
+
+Caching: `scripts/build-go-plugin.sh` computes a signature over `.mise.toml`,
+`goplugin/go.mod`, `goplugin/go.sum` (if present), and `goplugin/*.go`. If
+nothing changed, it skips the rebuild.
+
+[source,shell]
+----
+just build-go-plugin
+----
+
+== Zig Plugin
+
+Builds `plugin.wasm` with Zig as a WASI module exporting `run/add/fib`.
+We compile with `-fno-entry` and `-rdynamic` to ensure exports are retained.
+
+[source,shell]
+----
+just build-zig-plugin
+----
+
+== Running the Host
+
+The host looks for `./plugin.wasm` and calls `run()` by default (or runs all
+three entries in `all` mode). Examples:
+
+[source,shell]
+----
+# Build both plugin (Rust) and host, then run
+just
+
+# Run a specific mode using the last-built plugin
+./target/release/plug mandelbrot
+./target/release/plug add 20 22
+./target/release/plug fib 10
+----
+
+== Notes & Conventions
+
+- Only one `plugin.wasm` is used at a time. Build the desired language plugin
+  last before running the host.
+- Local caches are used to avoid writing to `$HOME` in sandboxed environments:
+  - TinyGo/Go: `.cache/{go-build,gomod,tmp}` and `XDG_CACHE_HOME=.cache`
+  - Zig: `.cache/zig/{global,local}`
+- Ignored files: `/target`, `plugin/target`, `plugin.wasm.o`, `plugin.wasm`,
+  `.cache/`, Zig caches
+
+== Troubleshooting
+
+- “failed to find function export `run`”
+  - Ensure you built the correct plugin last (so `plugin.wasm` points to it)
+  - For Zig, we export as `pub export fn` and use `-rdynamic`
+- TinyGo fails with “requires go version 1.19 through 1.24”
+  - Run `just setup` to install the pinned Go 1.24.0
+- Weird `just` arg parsing (e.g., `w=100`)
+  - Use positional args or `--set` flags: `just --set w 120 --set h 40 mandelbrot-go`
+
+== License
+
+This repository is intended for demo/learning purposes. No explicit license
+header is included.
+
