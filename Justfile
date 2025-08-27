@@ -70,6 +70,23 @@ add a b:
 build-go-plugin:
     scripts/build-go-plugin.sh
 
+# Build the Zig plugin (WASI), writing plugin.wasm at repo root
+build-zig-plugin:
+    @echo "Building Zig plugin (wasm32-wasi)..."
+    @mkdir -p .cache/zig/global .cache/zig/local
+    @cd zigplugin && \
+      ZIG_GLOBAL_CACHE_DIR=../.cache/zig/global \
+      ZIG_LOCAL_CACHE_DIR=../.cache/zig/local \
+      mise x -- zig build-exe -O ReleaseSmall -target wasm32-wasi -fno-entry -rdynamic -femit-bin=../plugin.wasm src/main.zig && \
+      rm -f ../plugin.wasm.o
+
+# Build host and run only the Zig plugin's run() entry
+mandelbrot-zig w="100" h="30" iters="120" msg="":
+    just build-zig-plugin
+    just build-host
+    @echo "Running Zig plugin mandelbrot demo with MANDEL_W={{w}} MANDEL_H={{h}} MANDEL_ITERS={{iters}}"
+    @MANDEL_W={{w}} MANDEL_H={{h}} MANDEL_ITERS={{iters}} bash -c 'msg="$1"; if [ -n "$msg" ]; then export PLUG_MSG="$msg"; fi; exec ./target/release/plug mandelbrot' -- '{{msg}}'
+
 # Build host and run only the Go plugin's run() entry
 mandelbrot-go w="100" h="30" iters="120" msg="":
     just build-go-plugin

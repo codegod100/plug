@@ -5,3 +5,9 @@ rust = "1.88.0"
 go = "1.24.0"
 just = "1.21.0"
 tinygo = "0.38.0"
+zig = "latest"
+
+[alias]
+# Map tools to asdf plugins so mise can auto-install
+zig = "asdf:asdf-community/asdf-zig"
+tinygo = "asdf:troyjfarrell/asdf-tinygo"

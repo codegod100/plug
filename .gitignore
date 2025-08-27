@@ -2,3 +2,6 @@
 plugin.wasm
 plugin/target
 .cache/
+zigplugin/zig-cache/
+zigplugin/.zig-cache/
+plugin.wasm.o
