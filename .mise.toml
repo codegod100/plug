@@ -5,7 +5,3 @@ rust = "1.88.0"
 go = "1.24.0"
 just = "1.21.0"
 tinygo = "0.38.0"
-
-[plugins]
-# Ensure the TinyGo plugin installs automatically on `mise install`
-tinygo = "https://github.com/troyjfarrell/asdf-tinygo"

@@ -1,5 +1,17 @@
 set shell := ["bash", "-uc"]
 
+# One-time environment setup: ensure TinyGo plugin and tools
+setup:
+    @echo "Ensuring TinyGo plugin is installed..."
+    @if ! mise plugins ls | grep -qx 'tinygo'; then \
+        echo "Installing mise plugin: tinygo"; \
+        mise plugin add tinygo https://github.com/troyjfarrell/asdf-tinygo; \
+    else \
+        echo "TinyGo plugin already installed"; \
+    fi
+    @echo "Installing tools from .mise.toml"
+    mise install
+
 # Default: build plugin + host and run with defaults
 all w="100" h="30" iters="120" msg="":
     just build
@@ -56,16 +68,7 @@ add a b:
 
 # Build the Go plugin with TinyGo only
 build-go-plugin:
-    @echo "Building Go plugin with TinyGo..."
-    # Use a workspace-local cache to avoid writing to $HOME (sandbox)
-    @mkdir -p .cache/go-build .cache/gomod .cache/tmp
-    # Use mise to ensure the pinned TinyGo is used
-    (cd goplugin && \
-      XDG_CACHE_HOME="$(pwd)/../.cache" \
-      GOCACHE="$(pwd)/../.cache/go-build" \
-      GOMODCACHE="$(pwd)/../.cache/gomod" \
-      GOTMPDIR="$(pwd)/../.cache/tmp" \
-      mise x -- tinygo build -o ../plugin.wasm -target=wasi .)
+    scripts/build-go-plugin.sh
 
 # Build host and run only the Go plugin's run() entry
 mandelbrot-go w="100" h="30" iters="120" msg="":
