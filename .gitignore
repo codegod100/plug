@@ -1,3 +1,4 @@
 /target
 plugin.wasm
 plugin/target
+.cache/

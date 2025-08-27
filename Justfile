@@ -33,8 +33,46 @@ build-host:
 # Run the host with optional environment for the Mandelbrot demo
 # Usage: just run [w] [h] [iters] [msg]
 run w="100" h="30" iters="120" msg="":
-    @echo "Running host with MANDEL_W={{w}} MANDEL_H={{h}} MANDEL_ITERS={{iters}}"
-    @MANDEL_W={{w}} MANDEL_H={{h}} MANDEL_ITERS={{iters}} bash -c 'msg="$1"; if [ -n "$msg" ]; then export PLUG_MSG="$msg"; fi; exec ./target/release/plug' -- '{{msg}}'
+    @echo "Running all with MANDEL_W={{w}} MANDEL_H={{h}} MANDEL_ITERS={{iters}}"
+    @MANDEL_W={{w}} MANDEL_H={{h}} MANDEL_ITERS={{iters}} bash -c 'msg="$1"; if [ -n "$msg" ]; then export PLUG_MSG="$msg"; fi; exec ./target/release/plug all' -- '{{msg}}'
+
+# Run only the Mandelbrot demo
+mandelbrot w="100" h="30" iters="120" msg="":
+    just build
+    @echo "Running mandelbrot with MANDEL_W={{w}} MANDEL_H={{h}} MANDEL_ITERS={{iters}}"
+    @MANDEL_W={{w}} MANDEL_H={{h}} MANDEL_ITERS={{iters}} bash -c 'msg="$1"; if [ -n "$msg" ]; then export PLUG_MSG="$msg"; fi; exec ./target/release/plug mandelbrot' -- '{{msg}}'
+
+# Run only fib with an argument
+fib n="10":
+    just build
+    @echo "Running fib {{n}}"
+    ./target/release/plug fib {{n}}
+
+# Run only add with two integers
+add a b:
+    just build
+    @echo "Running add {{a}} {{b}}"
+    ./target/release/plug add {{a}} {{b}}
+
+# Build the Go plugin with TinyGo only
+build-go-plugin:
+    @echo "Building Go plugin with TinyGo..."
+    # Use a workspace-local cache to avoid writing to $HOME (sandbox)
+    @mkdir -p .cache/go-build .cache/gomod .cache/tmp
+    # Use mise to ensure the pinned TinyGo is used
+    (cd goplugin && \
+      XDG_CACHE_HOME="$(pwd)/../.cache" \
+      GOCACHE="$(pwd)/../.cache/go-build" \
+      GOMODCACHE="$(pwd)/../.cache/gomod" \
+      GOTMPDIR="$(pwd)/../.cache/tmp" \
+      mise x -- tinygo build -o ../plugin.wasm -target=wasi .)
+
+# Build host and run only the Go plugin's run() entry
+mandelbrot-go w="100" h="30" iters="120" msg="":
+    just build-go-plugin
+    just build-host
+    @echo "Running Go plugin mandelbrot-like demo with MANDEL_W={{w}} MANDEL_H={{h}} MANDEL_ITERS={{iters}}"
+    @MANDEL_W={{w}} MANDEL_H={{h}} MANDEL_ITERS={{iters}} bash -c 'msg="$1"; if [ -n "$msg" ]; then export PLUG_MSG="$msg"; fi; exec ./target/release/plug mandelbrot' -- '{{msg}}'
 
 # Clean build artifacts
 clean:
